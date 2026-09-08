@@ -31,9 +31,9 @@ class Enemy:
         self.y = -self.height - random.randint(0, 100)
         self.glow = 0
     
-    def update(self, difficulty):
-        self.y += self.speed * difficulty
-        self.glow = (self.glow + 0.2) % (2 * math.pi)
+    def update(self, difficulty, delta_scale=1.0):
+        self.y += self.speed * difficulty * delta_scale
+        self.glow = (self.glow + 0.2 * delta_scale) % (2 * math.pi)
     
     def draw(self, surface):
         glow_size = int(5 + math.sin(self.glow) * 3)

@@ -18,16 +18,16 @@ class Player:
         self.slow_timer = 0
         self.double_points_timer = 0
     
-    def move(self, keys):
+    def move(self, keys, delta_scale=1.0):
         base_speed = self.speed
         if self.slow_timer > 0:
             base_speed = self.speed * 0.6
-            self.slow_timer -= 1
+            self.slow_timer = max(0, self.slow_timer - delta_scale)
         
         if keys[pygame.K_LEFT]:
-            self.x -= base_speed
+            self.x -= base_speed * delta_scale
         if keys[pygame.K_RIGHT]:
-            self.x += base_speed
+            self.x += base_speed * delta_scale
         
         self.x = max(0, min(self.x, WIDTH - self.width))
         
@@ -36,13 +36,13 @@ class Player:
         if len(self.trail) > 15:
             self.trail.pop(0)
     
-    def update_timers(self):
+    def update_timers(self, delta_scale=1.0):
         if self.shield_timer > 0:
-            self.shield_timer -= 1
+            self.shield_timer = max(0, self.shield_timer - delta_scale)
             if self.shield_timer == 0:
                 self.has_shield = False
         if self.double_points_timer > 0:
-            self.double_points_timer -= 1
+            self.double_points_timer = max(0, self.double_points_timer - delta_scale)
     
     def draw(self, surface):
         # Draw trail

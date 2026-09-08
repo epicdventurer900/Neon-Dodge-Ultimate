@@ -18,9 +18,9 @@ class Particle:
         ])
         self.alpha = random.randint(50, 150)
     
-    def update(self):
-        self.y += self.speed_y
-        self.x += self.speed_x
+    def update(self, delta_scale=1.0):
+        self.y += self.speed_y * delta_scale
+        self.x += self.speed_x * delta_scale
         if self.y > HEIGHT:
             self.y = 0
             self.x = random.randint(0, WIDTH)
@@ -43,8 +43,8 @@ class StarParticle:
         self.speed = random.uniform(0.5, 2)
         self.brightness = random.randint(100, 255)
     
-    def update(self):
-        self.y += self.speed
+    def update(self, delta_scale=1.0):
+        self.y += self.speed * delta_scale
         if self.y > HEIGHT:
             self.y = 0
             self.x = random.randint(0, WIDTH)

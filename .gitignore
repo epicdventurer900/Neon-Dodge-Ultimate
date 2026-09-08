@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+.venv/
+high_score.json
+.DS_Store

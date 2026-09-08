@@ -25,9 +25,9 @@ class PowerUp:
         
         self.angle = 0
     
-    def update(self):
-        self.y += self.speed
-        self.angle += 0.1
+    def update(self, delta_scale=1.0):
+        self.y += self.speed * delta_scale
+        self.angle += 0.1 * delta_scale
     
     def draw(self, surface, font_small):
         # Pulsing effect

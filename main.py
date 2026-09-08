@@ -2,8 +2,10 @@ import pygame
 import random
 import math
 import sys
+import json
+import os
 from settings import WIDTH, HEIGHT, init_fonts, font_large, font_medium, font_small, COLORS
-from audio import init_audio, boom_sound, powerup_sound, combo_sound, ambient_music
+import audio
 from player import Player
 from enemy import Enemy
 from powerup import PowerUp
@@ -14,9 +16,27 @@ pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Neon Dodge - Ultimate")
 clock = pygame.time.Clock()
+HIGH_SCORE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "high_score.json")
+FRAME_RATE = 60
 
 init_fonts()
-init_audio()
+audio.init_audio()
+
+
+def load_high_score():
+    try:
+        with open(HIGH_SCORE_FILE, "r", encoding="utf-8") as score_file:
+            return max(0, int(json.load(score_file).get("high_score", 0)))
+    except (FileNotFoundError, json.JSONDecodeError, OSError, TypeError, ValueError):
+        return 0
+
+
+def save_high_score(score):
+    try:
+        with open(HIGH_SCORE_FILE, "w", encoding="utf-8") as score_file:
+            json.dump({"high_score": max(0, int(score))}, score_file)
+    except (OSError, TypeError, ValueError) as error:
+        print(f"High score could not be saved: {error}")
 
 def main():
     # Game state
@@ -31,7 +51,7 @@ def main():
     
     # Game variables
     score = 0
-    high_score = 0
+    high_score = load_high_score()
     lives = 3
     combo = 0
     combo_timer = 0
@@ -48,10 +68,12 @@ def main():
     
     # Music started flag
     music_started = False
+    audio_enabled = pygame.mixer.get_init() is not None
     
     running = True
     
     while running:
+        delta_scale = min(clock.tick(FRAME_RATE) / (1000 / FRAME_RATE), 3.0)
         # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -60,13 +82,25 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                if event.key == pygame.K_m:
+                    audio_enabled = not audio_enabled
+                    if not audio_enabled and pygame.mixer.get_init():
+                        pygame.mixer.stop()
+                    elif audio_enabled and music_started and audio.ambient_music:
+                        audio.ambient_music.start()
+                if event.key == pygame.K_F11:
+                    if pygame.display.get_surface().get_flags() & pygame.FULLSCREEN:
+                        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+                    else:
+                        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
                 
                 if game_state == "START":
                     if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                         game_state = "PLAYING"
                         # Start ambient music when game begins
                         if not music_started:
-                            ambient_music.start()
+                            if audio_enabled and audio.ambient_music:
+                                audio.ambient_music.start()
                             music_started = True
                 
                 elif game_state == "PLAYING":
@@ -109,12 +143,12 @@ def main():
         
         # Draw stars
         for star in stars:
-            star.update()
+            star.update(delta_scale)
             star.draw(screen)
         
         # Draw particles
         for particle in particles:
-            particle.update()
+            particle.update(delta_scale)
             particle.draw(screen)
         
         # ============= START SCREEN =============
@@ -152,11 +186,11 @@ def main():
         # ============= PLAYING STATE =============
         elif game_state == "PLAYING":
             # Player movement
-            player.move(keys)
-            player.update_timers()
+            player.move(keys, delta_scale)
+            player.update_timers(delta_scale)
             
             # Spawn enemies
-            enemy_timer += 1
+            enemy_timer += delta_scale
             spawn_rate = max(20, 50 - int(difficulty * 10))
             if enemy_timer > spawn_rate:
                 enemy_timer = 0
@@ -170,7 +204,7 @@ def main():
                 enemies.append(Enemy(enemy_type))
             
             # Spawn powerups
-            powerup_timer += 1
+            powerup_timer += delta_scale
             if powerup_timer > 500:
                 powerup_timer = 0
                 if random.random() < 0.3:
@@ -181,13 +215,13 @@ def main():
             
             # Combo timer
             if combo_timer > 0:
-                combo_timer -= 1
+                combo_timer = max(0, combo_timer - delta_scale)
             else:
                 combo = 0
             
             # Update enemies
             for enemy in enemies[:]:
-                enemy.update(difficulty)
+                enemy.update(difficulty, delta_scale)
                 
                 # Check collision with player
                 enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
@@ -199,13 +233,13 @@ def main():
                         player.has_shield = False
                         player.shield_timer = 0
                         enemies.remove(enemy)
-                        if powerup_sound:
-                            powerup_sound.play()
+                        if audio_enabled and audio.powerup_sound:
+                            audio.powerup_sound.play()
                         continue
                     
                     # Hit!
-                    if boom_sound:
-                        boom_sound.play()
+                    if audio_enabled and audio.boom_sound:
+                        audio.boom_sound.play()
                     
                     explosion = (enemy.x + enemy.width // 2, enemy.y + enemy.height // 2)
                     explosion_size = 10
@@ -218,6 +252,7 @@ def main():
                     if lives <= 0:
                         if score > high_score:
                             high_score = score
+                            save_high_score(high_score)
                         game_state = "GAME_OVER"
                     continue
                 
@@ -231,12 +266,12 @@ def main():
                     combo += 1
                     combo_timer = 120
                     
-                    if combo_sound and combo > 1:
-                        combo_sound.play()
+                    if audio_enabled and audio.combo_sound and combo > 1:
+                        audio.combo_sound.play()
             
             # Update powerups
             for powerup in powerups[:]:
-                powerup.update()
+                powerup.update(delta_scale)
                 
                 # Check collision
                 powerup_rect = pygame.Rect(powerup.x - powerup.size, powerup.y - powerup.size,
@@ -254,8 +289,8 @@ def main():
                     elif powerup.type == "double":
                         player.double_points_timer = 480  # 8 seconds
                     
-                    if powerup_sound:
-                        powerup_sound.play()
+                    if audio_enabled and audio.powerup_sound:
+                        audio.powerup_sound.play()
                     
                     continue
                 
@@ -281,7 +316,7 @@ def main():
                                       explosion, explosion_size)
                     pygame.draw.circle(screen, (*COLORS['NEON_YELLOW'], alpha // 2),
                                       explosion, explosion_size // 2)
-                    explosion_size += 8
+                    explosion_size += 8 * delta_scale
                 else:
                     explosion = None
             
@@ -342,10 +377,12 @@ def main():
         
         # Update display
         pygame.display.update()
-        clock.tick(60)
-    
+    if score > high_score:
+        save_high_score(score)
+
     # Clean up
-    ambient_music.stop()
+    if audio.ambient_music:
+        audio.ambient_music.stop()
     pygame.quit()
 
 if __name__ == "__main__":

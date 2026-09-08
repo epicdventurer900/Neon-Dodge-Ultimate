@@ -5,7 +5,10 @@ import array
 import threading
 import time
 
-pygame.mixer.init()
+try:
+    pygame.mixer.init(channels=1)
+except pygame.error:
+    pass
 
 # Global sounds
 boom_sound = None
@@ -39,7 +42,7 @@ def create_procedural_sound(frequency, duration, volume=0.3):
             audio_data[i] = max(-32768, min(32767, sample))
         
         return pygame.mixer.Sound(buffer=audio_data)
-    except Exception as e:
+    except (pygame.error, ValueError, OverflowError) as e:
         print(f"Sound creation failed: {e}")
         return None
 
@@ -76,7 +79,7 @@ class AmbientMusic:
             
             sound = pygame.mixer.Sound(buffer=audio_data)
             sound.play()
-        except:
+        except pygame.error:
             pass
     
     def start(self):
