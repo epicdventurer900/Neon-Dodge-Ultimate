@@ -24,7 +24,6 @@ clock = pygame.time.Clock()
 HIGH_SCORE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "high_score.json")
 FRAME_RATE = 60
 
-# Initialize fonts before importing the font objects.
 init_fonts()
 from settings import font_large, font_medium, font_small  # noqa: E402
 
@@ -50,17 +49,13 @@ def save_high_score(score):
 def main():
     global screen
 
-    # Game state
-    game_state = "START"  # START, PLAYING, PAUSED, GAME_OVER
-
-    # Initialize game objects
+    game_state = "START"
     player = Player()
     enemies = []
     powerups = []
     particles = [Particle() for _ in range(30)]
     stars = [StarParticle() for _ in range(50)]
 
-    # Game variables
     score = 0
     high_score = load_high_score()
     lives = 3
@@ -69,29 +64,21 @@ def main():
     difficulty = 1.0
     enemy_timer = 0
     powerup_timer = 0
-
-    # Screen shake
     shake_intensity = 0
-
-    # Explosion effect
     explosion = None
     explosion_size = 0
-
-    # Music started flag
     music_started = False
     audio_enabled = pygame.mixer.get_init() is not None
-
     running = True
 
     while running:
         delta_scale = min(clock.tick(FRAME_RATE) / (1000 / FRAME_RATE), 3.0)
 
-        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-            if event.type == pygame.KEYDOWN:
+            elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
 
@@ -108,114 +95,80 @@ def main():
                     else:
                         screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 
-                elif game_state == "START":
-                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                        game_state = "PLAYING"
-                        if not music_started:
-                            if audio_enabled and audio.ambient_music:
-                                audio.ambient_music.start()
-                            music_started = True
+                elif game_state == "START" and event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+                    game_state = "PLAYING"
+                    if not music_started:
+                        if audio_enabled and audio.ambient_music:
+                            audio.ambient_music.start()
+                        music_started = True
 
-                elif game_state == "PLAYING":
-                    if event.key == pygame.K_p:
-                        game_state = "PAUSED"
+                elif game_state == "PLAYING" and event.key == pygame.K_p:
+                    game_state = "PAUSED"
 
-                elif game_state == "PAUSED":
-                    if event.key == pygame.K_p:
-                        game_state = "PLAYING"
+                elif game_state == "PAUSED" and event.key == pygame.K_p:
+                    game_state = "PLAYING"
 
-                elif game_state == "GAME_OVER":
-                    if event.key == pygame.K_r:
-                        # Reset game
-                        player = Player()
-                        enemies.clear()
-                        powerups.clear()
-                        particles = [Particle() for _ in range(30)]
-                        stars = [StarParticle() for _ in range(50)]
-                        score = 0
-                        lives = 3
-                        combo = 0
-                        combo_timer = 0
-                        difficulty = 1.0
-                        enemy_timer = 0
-                        powerup_timer = 0
-                        shake_intensity = 0
-                        explosion = None
-                        explosion_size = 0
-                        game_state = "PLAYING"
+                elif game_state == "GAME_OVER" and event.key == pygame.K_r:
+                    player = Player()
+                    enemies.clear()
+                    powerups.clear()
+                    particles = [Particle() for _ in range(30)]
+                    stars = [StarParticle() for _ in range(50)]
+                    score = 0
+                    lives = 3
+                    combo = 0
+                    combo_timer = 0
+                    difficulty = 1.0
+                    enemy_timer = 0
+                    powerup_timer = 0
+                    shake_intensity = 0
+                    explosion = None
+                    explosion_size = 0
+                    game_state = "PLAYING"
 
-        # Get keys
         keys = pygame.key.get_pressed()
-
-        # Apply screen shake
         shake_offset = screen_shake(shake_intensity)
         if shake_intensity > 0:
             shake_intensity = max(0, shake_intensity - 1)
 
-        # Draw background
         draw_gradient_background(screen)
 
-        # Draw stars
         for star in stars:
             star.update(delta_scale)
             star.draw(screen)
 
-        # Draw particles
         for particle in particles:
             particle.update(delta_scale)
             particle.draw(screen)
 
-        # ============= START SCREEN =============
         if game_state == "START":
-            draw_text_with_glow(
-                screen,
-                "NEON DODGE",
-                font_large,
-                COLORS["NEON_BLUE"],
-                WIDTH // 2 - 160,
-                HEIGHT // 3,
-                COLORS["NEON_PINK"],
-            )
-
-            draw_text_with_glow(
-                screen,
-                "ULTIMATE",
-                font_large,
-                COLORS["NEON_PINK"],
-                WIDTH // 2 - 100,
-                HEIGHT // 3 + 60,
-                COLORS["NEON_BLUE"],
-            )
+            draw_text_with_glow(screen, "NEON DODGE", font_large, COLORS["NEON_BLUE"],
+                                WIDTH // 2 - 160, HEIGHT // 3, COLORS["NEON_PINK"])
+            draw_text_with_glow(screen, "ULTIMATE", font_large, COLORS["NEON_PINK"],
+                                WIDTH // 2 - 100, HEIGHT // 3 + 60, COLORS["NEON_BLUE"])
 
             inst1 = font_medium.render("Use LEFT/RIGHT arrows to move", True, COLORS["WHITE"])
             inst2 = font_medium.render("Collect power-ups for advantages", True, COLORS["WHITE"])
             inst3 = font_medium.render("Avoid the falling enemies!", True, COLORS["WHITE"])
-
             screen.blit(inst1, (WIDTH // 2 - inst1.get_width() // 2, HEIGHT // 2 + 20))
             screen.blit(inst2, (WIDTH // 2 - inst2.get_width() // 2, HEIGHT // 2 + 60))
             screen.blit(inst3, (WIDTH // 2 - inst3.get_width() // 2, HEIGHT // 2 + 100))
 
             if pygame.time.get_ticks() % 1000 < 500:
-                start_text = font_medium.render(
-                    "Use LEFT/RIGHT Arrows to Start", True, COLORS["NEON_YELLOW"]
-                )
+                start_text = font_medium.render("Use LEFT/RIGHT Arrows to Start", True, COLORS["NEON_YELLOW"])
                 screen.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, HEIGHT - 100))
 
             dev_text = font_small.render("Developed by Shetty", True, COLORS["NEON_GREEN"])
             screen.blit(dev_text, (WIDTH // 2 - dev_text.get_width() // 2, HEIGHT - 50))
 
             if high_score > 0:
-                hs_text = font_small.render(
-                    f"High Score: {high_score}", True, COLORS["NEON_PURPLE"]
-                )
+                hs_text = font_small.render(f"High Score: {high_score}", True, COLORS["NEON_PURPLE"])
                 screen.blit(hs_text, (WIDTH // 2 - hs_text.get_width() // 2, HEIGHT // 2 + 160))
 
-        # ============= PLAYING STATE =============
         elif game_state == "PLAYING":
             player.move(keys, delta_scale)
             player.update_timers(delta_scale)
 
-            # Spawn enemies
             enemy_timer += delta_scale
             spawn_rate = max(20, 50 - int(difficulty * 10))
             if enemy_timer > spawn_rate:
@@ -228,25 +181,23 @@ def main():
                     enemy_type = "basic"
                 enemies.append(Enemy(enemy_type))
 
-            # Spawn powerups
             powerup_timer += delta_scale
             if powerup_timer > 500:
                 powerup_timer = 0
                 if random.random() < 0.3:
                     powerups.append(PowerUp())
 
-            # Update difficulty
             difficulty = 1.0 + (score // 50) * 0.2
 
-            # Combo timer
             if combo_timer > 0:
                 combo_timer = max(0, combo_timer - delta_scale)
             else:
                 combo = 0
 
-            # Update enemies
+            enemy_speed_multiplier = 0.55 if player.slow_timer > 0 else 1.0
+
             for enemy in enemies[:]:
-                enemy.update(difficulty, delta_scale)
+                enemy.update(difficulty, delta_scale, enemy_speed_multiplier)
 
                 enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
                 player_rect = pygame.Rect(player.x, player.y, player.width, player.height)
@@ -263,13 +214,9 @@ def main():
                     if audio_enabled and audio.boom_sound:
                         audio.boom_sound.play()
 
-                    explosion = (
-                        enemy.x + enemy.width // 2,
-                        enemy.y + enemy.height // 2,
-                    )
+                    explosion = (enemy.x + enemy.width // 2, enemy.y + enemy.height // 2)
                     explosion_size = 10
                     shake_intensity = 15
-
                     enemies.remove(enemy)
                     lives -= 1
                     combo = 0
@@ -281,23 +228,17 @@ def main():
                         game_state = "GAME_OVER"
                     continue
 
-                # Enemy passed bottom
                 if enemy.y > HEIGHT:
                     enemies.remove(enemy)
-                    points = enemy.points
-                    if player.double_points_timer > 0:
-                        points *= 2
+                    points = enemy.points * (2 if player.double_points_timer > 0 else 1)
                     score += points
                     combo += 1
                     combo_timer = 120
-
                     if audio_enabled and audio.combo_sound and combo > 1:
                         audio.combo_sound.play()
 
-            # Update powerups
             for powerup in powerups[:]:
                 powerup.update(delta_scale)
-
                 powerup_rect = pygame.Rect(
                     powerup.x - powerup.size,
                     powerup.y - powerup.size,
@@ -308,7 +249,6 @@ def main():
 
                 if player_rect.colliderect(powerup_rect):
                     powerups.remove(powerup)
-
                     if powerup.type == "shield":
                         player.has_shield = True
                         player.shield_timer = 600
@@ -324,114 +264,72 @@ def main():
                 if powerup.y > HEIGHT:
                     powerups.remove(powerup)
 
-            # Draw enemies
             for enemy in enemies:
                 enemy.draw(screen)
-
-            # Draw powerups
             for powerup in powerups:
                 powerup.draw(screen, font_small)
-
-            # Draw player
             player.draw(screen)
 
-            # Explosion effect
             if explosion:
                 if explosion_size < 120:
                     alpha = int(255 * (1 - explosion_size / 120))
-                    pygame.draw.circle(
-                        screen,
-                        (*COLORS["NEON_ORANGE"], alpha),
-                        explosion,
-                        int(explosion_size),
-                    )
-                    pygame.draw.circle(
-                        screen,
-                        (*COLORS["NEON_YELLOW"], alpha // 2),
-                        explosion,
-                        max(1, int(explosion_size // 2)),
-                    )
+                    pygame.draw.circle(screen, (*COLORS["NEON_ORANGE"], alpha), explosion, int(explosion_size))
+                    pygame.draw.circle(screen, (*COLORS["NEON_YELLOW"], alpha // 2), explosion,
+                                       max(1, int(explosion_size // 2)))
                     explosion_size += 8 * delta_scale
                 else:
                     explosion = None
 
-            # UI
             draw_score_with_effects(screen, score, high_score, combo, font_medium, font_small)
             draw_health_bar(screen, lives, font_small=font_small)
             draw_powerup_indicators(screen, player, font_small)
 
-        # ============= PAUSED STATE =============
         elif game_state == "PAUSED":
             for enemy in enemies:
                 enemy.draw(screen)
+            for powerup in powerups:
+                powerup.draw(screen, font_small)
             player.draw(screen)
 
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150))
             screen.blit(overlay, (0, 0))
-
-            draw_text_with_glow(
-                screen,
-                "PAUSED",
-                font_large,
-                COLORS["NEON_BLUE"],
-                WIDTH // 2 - 100,
-                HEIGHT // 2 - 30,
-            )
-
+            draw_text_with_glow(screen, "PAUSED", font_large, COLORS["NEON_BLUE"],
+                                WIDTH // 2 - 100, HEIGHT // 2 - 30)
             resume_text = font_medium.render("Press P to Resume", True, COLORS["WHITE"])
             screen.blit(resume_text, (WIDTH // 2 - resume_text.get_width() // 2, HEIGHT // 2 + 40))
 
-        # ============= GAME OVER STATE =============
         elif game_state == "GAME_OVER":
             for enemy in enemies:
                 enemy.draw(screen)
+            player.draw(screen)
 
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 180))
             screen.blit(overlay, (0, 0))
+            draw_text_with_glow(screen, "GAME OVER", font_large, COLORS["NEON_PINK"],
+                                WIDTH // 2 - 140, HEIGHT // 3)
 
-            draw_text_with_glow(
-                screen,
-                "GAME OVER",
-                font_large,
-                COLORS["NEON_PINK"],
-                WIDTH // 2 - 140,
-                HEIGHT // 3,
-            )
-
-            final_score = font_medium.render(
-                f"Final Score: {score}", True, COLORS["NEON_BLUE"]
-            )
-            best_score = font_medium.render(
-                f"Best Score: {high_score}", True, COLORS["NEON_YELLOW"]
-            )
-
+            final_score = font_medium.render(f"Final Score: {score}", True, COLORS["NEON_BLUE"])
+            best_score = font_medium.render(f"Best Score: {high_score}", True, COLORS["NEON_YELLOW"])
             screen.blit(final_score, (WIDTH // 2 - final_score.get_width() // 2, HEIGHT // 2))
             screen.blit(best_score, (WIDTH // 2 - best_score.get_width() // 2, HEIGHT // 2 + 40))
 
             if pygame.time.get_ticks() % 800 < 400:
-                restart_text = font_medium.render(
-                    "Press R to Restart", True, COLORS["WHITE"]
-                )
-                screen.blit(
-                    restart_text,
-                    (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 100),
-                )
+                restart_text = font_medium.render("Press R to Restart", True, COLORS["WHITE"])
+                screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 100))
 
-        # Apply screen shake after drawing the frame.
         if shake_offset != (0, 0):
             temp_surface = screen.copy()
             screen.fill((0, 0, 0))
             screen.blit(temp_surface, shake_offset)
 
-        pygame.display.update()
+        pygame.display.flip()
 
     if score > high_score:
         save_high_score(score)
 
-    if audio.ambient_music:
-        audio.ambient_music.stop()
+    audio.stop_ambient()
     pygame.quit()
 
 
